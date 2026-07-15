@@ -570,9 +570,8 @@ class _ConductorHomeScreenState extends ConsumerState<ConductorHomeScreen> {
     );
   }
 
-  // LUGGAGE REGISTER TAB
   Widget _buildLuggageTab() {
-    return Padding(
+    return SingleChildScrollView(
       padding: AppSpacing.pAll16,
       child: Column(
         children: [
@@ -645,7 +644,7 @@ class _ConductorHomeScreenState extends ConsumerState<ConductorHomeScreen> {
                       children: [1, 2, 3, 4].map((p) {
                         final isSelected = int.tryParse(_luggagePiecesController.text) == p;
                         return ChoiceChip(
-                          label: Text('$p Bag${p > 1 ? 's' : ''}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          label: Text("$p Bag${p > 1 ? "s" : ""}", style: const TextStyle(fontWeight: FontWeight.bold)),
                           selected: isSelected,
                           selectedColor: AppColors.primaryBlue.withValues(alpha: 0.25),
                           labelStyle: TextStyle(
@@ -700,47 +699,50 @@ class _ConductorHomeScreenState extends ConsumerState<ConductorHomeScreen> {
           AppSpacing.gapH20,
 
           // Luggage Registry List
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Active Trip Luggage Manifest', style: AppTypography.subtitle),
-                AppSpacing.gapH12,
-                Expanded(
-                  child: _luggageList.isEmpty
-                      ? const Center(child: Text('No registered luggage tags on this bus yet.'))
-                      : ListView.builder(
-                          itemCount: _luggageList.length,
-                          itemBuilder: (context, index) {
-                            final lug = _luggageList[index];
-                            final passenger = _passengerCheckInList.firstWhere(
-                              (p) => p['id'] == lug['booking_id'], 
-                              orElse: () => {'name': 'Somali Commuter'},
-                            );
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Active Trip Luggage Manifest', style: AppTypography.subtitle),
+              AppSpacing.gapH12,
+              _luggageList.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24.0),
+                        child: Text('No registered luggage tags on this bus yet.'),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _luggageList.length,
+                      itemBuilder: (context, index) {
+                        final lug = _luggageList[index];
+                        final passenger = _passengerCheckInList.firstWhere(
+                          (p) => p['id'] == lug['booking_id'],
+                          orElse: () => {'name': 'Somali Commuter'},
+                        );
 
-                            return Card(
-                              child: ListTile(
-                                leading: const Icon(Icons.tag_rounded, color: AppColors.accentGold),
-                                title: Text('Tag: ${lug['tag_number']}'),
-                                subtitle: Text('Passenger: ${passenger['name']} | Weight: ${lug['weight_kg']} KG (${lug['pieces']} pcs)'),
-                                trailing: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.successGreen.withValues(alpha: 0.1),
-                                    borderRadius: AppSpacing.radiusSmall,
-                                  ),
-                                  child: Text(
-                                    lug['status'].toString().toUpperCase(),
-                                    style: const TextStyle(color: AppColors.successGreen, fontWeight: FontWeight.bold, fontSize: 10),
-                                  ),
-                                ),
+                        return Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.tag_rounded, color: AppColors.accentGold),
+                            title: Text('Tag: ${lug['tag_number']}'),
+                            subtitle: Text('Passenger: ${passenger['name']} | Weight: ${lug['weight_kg']} KG (${lug['pieces']} pcs)'),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.successGreen.withValues(alpha: 0.1),
+                                borderRadius: AppSpacing.radiusSmall,
                               ),
-                            );
-                          },
-                        ),
-                )
-              ],
-            ),
+                              child: Text(
+                                lug['status'].toString().toUpperCase(),
+                                style: const TextStyle(color: AppColors.successGreen, fontWeight: FontWeight.bold, fontSize: 10),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    )
+            ],
           )
         ],
       ),

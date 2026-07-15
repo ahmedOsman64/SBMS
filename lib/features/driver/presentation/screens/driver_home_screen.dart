@@ -386,8 +386,29 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     );
   }
 
-  // TODAY'S TRIPS TAB
   Widget _buildTripsTab() {
+    Widget buildTripActionButton({
+      required IconData icon,
+      required String label,
+      required Color color,
+      required VoidCallback onPressed,
+    }) {
+      return TextButton.icon(
+        style: TextButton.styleFrom(
+          foregroundColor: color,
+          backgroundColor: color.withValues(alpha: 0.1),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      );
+    }
+
     if (_todayTrips.isEmpty) {
       return _buildEmptyState(
         context: context,
@@ -479,40 +500,53 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Seats Allocated: ${trip.totalSeats - trip.availableSeats}/${trip.totalSeats}'),
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _activeTrip = trip;
-                                _currentTab = 2; // Jump to Navigation map
-                              });
-                            },
-                            child: const Text('Navigate'),
-                          ),
-                          AppSpacing.gapW8,
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.play_circle_fill_rounded, color: AppColors.successGreen, size: 38),
-                                tooltip: 'Start (Biloow)',
-                                onPressed: () => _updateTripStatus('en_route'),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.pause_circle_filled_rounded, color: AppColors.warningOrange, size: 38),
-                                tooltip: 'Delay (Baaqo)',
-                                onPressed: () => _updateTripStatus('delayed'),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.check_circle_rounded, color: AppColors.primaryBlue, size: 38),
-                                tooltip: 'Complete (Dhamee)',
-                                onPressed: () => _updateTripStatus('completed'),
-                              ),
-                            ],
-                          )
-                        ],
-                      )
+                      Text(
+                        'Seats Allocated: ${trip.totalSeats - trip.availableSeats}/${trip.totalSeats}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryBlue,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _activeTrip = trip;
+                            _currentTab = 2; // Jump to Navigation map
+                          });
+                        },
+                        icon: const Icon(Icons.navigation_rounded, size: 14),
+                        label: const Text('Navigate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  AppSpacing.gapH12,
+                  const Divider(height: 1),
+                  AppSpacing.gapH12,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      buildTripActionButton(
+                        icon: Icons.play_arrow_rounded,
+                        label: 'Start',
+                        color: AppColors.successGreen,
+                        onPressed: () => _updateTripStatus('en_route'),
+                      ),
+                      buildTripActionButton(
+                        icon: Icons.pause_rounded,
+                        label: 'Delay',
+                        color: AppColors.warningOrange,
+                        onPressed: () => _updateTripStatus('delayed'),
+                      ),
+                      buildTripActionButton(
+                        icon: Icons.check_rounded,
+                        label: 'Complete',
+                        color: AppColors.primaryBlue,
+                        onPressed: () => _updateTripStatus('completed'),
+                      ),
                     ],
                   )
                 ],
@@ -861,7 +895,13 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                       children: [
                         Icon(Icons.touch_app_rounded, color: AppColors.errorRed),
                         AppSpacing.gapW8,
-                        Text('Quick Incident Alert (Digniin Degdeg ah)', style: AppTypography.h3),
+                        Expanded(
+                          child: Text(
+                            'Quick Incident Alert (Digniin Degdeg ah)',
+                            style: AppTypography.h3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                     AppSpacing.gapH4,
@@ -948,20 +988,25 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                         children: [
                           Icon(Icons.edit_note_rounded, color: AppColors.errorRed),
                           AppSpacing.gapW8,
-                          Text('Other Incident Details (Qor faahfaahin kale)', style: AppTypography.h3),
+                          Expanded(
+                            child: Text(
+                              'Other Incident Details (Qor faahfaahin kale)',
+                              style: AppTypography.h3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                       AppSpacing.gapH16,
                       const Text('Severity Level', style: AppTypography.label),
                       AppSpacing.gapH8,
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           _buildSeverityChip('low'),
-                          AppSpacing.gapW8,
                           _buildSeverityChip('medium'),
-                          AppSpacing.gapW8,
                           _buildSeverityChip('high'),
-                          AppSpacing.gapW8,
                           _buildSeverityChip('critical'),
                         ],
                       ),

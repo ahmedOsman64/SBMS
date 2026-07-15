@@ -31,7 +31,9 @@ class RouteDetailsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
-        title: Text('${departure ?? "Any"} to ${arrival ?? "Any"}'),
+        title: Text(departure == null && arrival == null
+            ? 'All Available Routes'
+            : '${departure ?? "Any"} to ${arrival ?? "Any"}'),
       ),
       body: FutureBuilder<List<Trip>>(
         future: tripsFuture,
@@ -60,6 +62,17 @@ class RouteDetailsScreen extends ConsumerWidget {
             itemCount: trips.length,
             itemBuilder: (context, index) {
               final trip = trips[index];
+              final isFull = trip.occupiedSeats.length >= 30;
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              final departureDay = DateTime(trip.departureTime.year, trip.departureTime.month, trip.departureTime.day);
+              final isExpired = departureDay.isBefore(today);
+              final seatsTag = isFull
+                  ? 'FULL'
+                  : isExpired
+                      ? 'EXPIRED'
+                      : trip.availableSeats.toString();
+
               return Hero(
                 tag: 'trip-card-${trip.id}',
                 child: BusRouteCard(
@@ -68,9 +81,27 @@ class RouteDetailsScreen extends ConsumerWidget {
                   departureTime: _formatTime(trip.departureTime),
                   arrivalTime: _formatTime(trip.arrivalTime),
                   price: '\$${trip.price.toStringAsFixed(2)}',
-                  seatsLeft: trip.availableSeats.toString(),
+                  seatsLeft: seatsTag,
                   busNumber: trip.busNumber,
                   onTap: () {
+                    if (isExpired) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Waqtiga wuu baxay (Departed). Lama sii ballansan karo!'),
+                          backgroundColor: AppColors.errorRed,
+                        ),
+                      );
+                      return;
+                    }
+                    if (isFull) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Baska wuu buuxaa (30+ seats limit). Lama sii ballansan karo!'),
+                          backgroundColor: AppColors.errorRed,
+                        ),
+                      );
+                      return;
+                    }
                     // Update controller with selected trip
                     ref.read(bookingFlowControllerProvider.notifier).selectTrip(trip);
                     context.push('/booking-seats');

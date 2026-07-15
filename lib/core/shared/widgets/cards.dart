@@ -321,7 +321,12 @@ class BusRouteCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                             decoration: BoxDecoration(
-                              color: AppColors.errorRed.withValues(alpha: 0.08),
+                              color: (seatsLeft.toUpperCase().contains('FULL') ||
+                                      seatsLeft == '0' ||
+                                      seatsLeft.toUpperCase().contains('EXPIRED') ||
+                                      seatsLeft.toUpperCase().contains('DEPARTED'))
+                                  ? AppColors.errorRed.withValues(alpha: 0.15)
+                                  : AppColors.errorRed.withValues(alpha: 0.08),
                               borderRadius: AppSpacing.radiusSmall,
                             ),
                             child: Row(
@@ -329,10 +334,15 @@ class BusRouteCard extends StatelessWidget {
                                 const Icon(Icons.event_seat_rounded, size: 12, color: AppColors.errorRed),
                                 AppSpacing.gapW4,
                                 Text(
-                                  '$seatsLeft seats left',
+                                  (seatsLeft.toUpperCase().contains('FULL') || seatsLeft == '0')
+                                      ? 'FULL (Buuxa)'
+                                      : (seatsLeft.toUpperCase().contains('EXPIRED') ||
+                                              seatsLeft.toUpperCase().contains('DEPARTED'))
+                                          ? 'EXPIRED (Baxay)'
+                                          : '$seatsLeft seats left',
                                   style: AppTypography.bodySmall.copyWith(
                                     color: AppColors.errorRed,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],

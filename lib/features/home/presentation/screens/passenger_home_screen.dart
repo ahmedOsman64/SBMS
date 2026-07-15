@@ -243,7 +243,7 @@ class PassengerHomeScreen extends ConsumerWidget {
                     style: AppTypography.subtitle,
                   ),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () => context.push('/booking-routes-details'),
                     child: const Text('See All'),
                   ),
                 ],
@@ -256,11 +256,7 @@ class PassengerHomeScreen extends ConsumerWidget {
                 price: '\$25.00',
                 seatsLeft: '4',
                 busNumber: 'MOG-GRW-08',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Trip detail page coming soon')),
-                  );
-                },
+                onTap: () => context.push('/booking-routes-details?departure=Mogadishu&arrival=Garowe'),
               ),
               BusRouteCard(
                 departureCity: 'Hargeisa',
@@ -270,11 +266,7 @@ class PassengerHomeScreen extends ConsumerWidget {
                 price: '\$12.00',
                 seatsLeft: '9',
                 busNumber: 'HAR-BUR-02',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Trip detail page coming soon')),
-                  );
-                },
+                onTap: () => context.push('/booking-routes-details?departure=Hargeisa&arrival=Burao'),
               ),
             ],
           ),

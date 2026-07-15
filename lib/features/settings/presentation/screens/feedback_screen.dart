@@ -8,7 +8,6 @@ import '../../../../core/shared/services/supabase_service.dart';
 import '../../../../core/shared/widgets/buttons.dart';
 import '../../../../core/shared/widgets/dialogs.dart';
 import '../../../../core/shared/widgets/text_fields.dart';
-import '../../../../core/config/constants.dart';
 
 class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
@@ -53,7 +52,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
       final supabase = ref.read(supabaseServiceProvider).client;
       final userId = supabase.auth.currentUser?.id;
 
-      if (!AppConstants.supabaseUrl.contains('your-project-id') && userId != null) {
+      if (userId != null) {
         // Send to Supabase
         await supabase.from('feedback').insert({
           'user_id': userId,
@@ -62,8 +61,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
           'comment': comment,
         });
       } else {
-        // Mock DB wait
-        await Future.delayed(const Duration(seconds: 1));
+        throw Exception('User session not found. Please log in again.');
       }
 
       if (mounted) {

@@ -7,6 +7,7 @@ import '../../../../core/config/typography.dart';
 import '../../../../core/shared/services/auth_service.dart';
 import '../../../../core/shared/widgets/text_fields.dart';
 import '../../data/admin_repository.dart';
+import '../../../fleet/data/fleet_repository.dart';
 
 class AdminPortalScreen extends ConsumerStatefulWidget {
   const AdminPortalScreen({super.key});
@@ -29,6 +30,7 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
   List<Map<String, dynamic>> _fraudAlerts = [];
   List<Map<String, dynamic>> _dynamicPricing = [];
   List<Map<String, dynamic>> _managedStaff = [];
+  List<Map<String, dynamic>> _buses = [];
 
   // Add dialog controllers
   final _companyNameController = TextEditingController();
@@ -42,6 +44,10 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
   final _staffEmailCtrl = TextEditingController();
   final _staffPhoneCtrl = TextEditingController();
   final _staffPasswordCtrl = TextEditingController();
+  final _busNumberCtrl = TextEditingController();
+  final _busModelCtrl = TextEditingController();
+  final _busCapacityCtrl = TextEditingController(text: '40');
+  String _busStatus = 'active';
   String _staffRole = 'driver'; // 'driver' or 'conductor'
 
   // Dynamic pricing toggle variables
@@ -64,102 +70,211 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     _staffEmailCtrl.dispose();
     _staffPhoneCtrl.dispose();
     _staffPasswordCtrl.dispose();
+    _busNumberCtrl.dispose();
+    _busModelCtrl.dispose();
+    _busCapacityCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadAllAdminData() async {
     setState(() => _isLoading = true);
-    final repo = ref.read(adminRepositoryProvider);
+    try {
+      final repo = ref.read(adminRepositoryProvider);
 
-    final comps = await repo.getCompanies();
-    final branches = await repo.getBranches();
-    final coupons = await repo.getCoupons();
-    final tickets = await repo.getSupportTickets();
-    final payments = await repo.getPayments();
-    final logs = await repo.getAuditLogs();
-    final frauds = await repo.getFraudDetections();
-    final pricing = await repo.getDynamicPricingModifications();
-    final staff = await repo.getManagedStaff();
+      final comps = await repo.getCompanies();
+      final branches = await repo.getBranches();
+      final coupons = await repo.getCoupons();
+      final tickets = await repo.getSupportTickets();
+      final payments = await repo.getPayments();
+      final logs = await repo.getAuditLogs();
+      final frauds = await repo.getFraudDetections();
+      final pricing = await repo.getDynamicPricingModifications();
+      final staff = await repo.getManagedStaff();
+      final buses = await ref.read(fleetRepositoryProvider).getBuses();
 
-    setState(() {
-      _companies = comps;
-      _branches = branches;
-      _coupons = coupons;
-      _tickets = tickets;
-      _payments = payments;
-      _auditLogs = logs;
-      _fraudAlerts = frauds;
-      _dynamicPricing = pricing;
-      _managedStaff = staff;
-      _isLoading = false;
-    });
+      if (mounted) {
+        setState(() {
+          _companies = comps;
+          _branches = branches;
+          _coupons = coupons;
+          _tickets = tickets;
+          _payments = payments;
+          _auditLogs = logs;
+          _fraudAlerts = frauds;
+          _dynamicPricing = pricing;
+          _managedStaff = staff;
+          _buses = buses;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Database error: ${e.toString()}'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _triggerReportExport(String reportType, String format) async {
     setState(() => _isLoading = true);
-    final filename = await ref.read(adminRepositoryProvider).exportReport(
-      reportType: reportType,
-      format: format,
-    );
-    setState(() => _isLoading = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Successfully exported $filename to downloads!'),
-          backgroundColor: AppColors.successGreen,
-        ),
+    try {
+      final filename = await ref.read(adminRepositoryProvider).exportReport(
+        reportType: reportType,
+        format: format,
       );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully exported $filename to downloads!'),
+            backgroundColor: AppColors.successGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: ${e.toString()}'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _addCompany() async {
     if (_companyNameController.text.trim().isEmpty) return;
     setState(() => _isLoading = true);
-    await ref.read(adminRepositoryProvider).addCompany({
-      'name': _companyNameController.text.trim(),
-      'contact_email': _companyEmailController.text.trim(),
-      'contact_phone': _companyPhoneController.text.trim(),
-    });
-    _companyNameController.clear();
-    _companyEmailController.clear();
-    _companyPhoneController.clear();
-    await _loadAllAdminData();
-    if (mounted) Navigator.pop(context);
+    try {
+      await ref.read(adminRepositoryProvider).addCompany({
+        'name': _companyNameController.text.trim(),
+        'contact_email': _companyEmailController.text.trim(),
+        'contact_phone': _companyPhoneController.text.trim(),
+      });
+      _companyNameController.clear();
+      _companyEmailController.clear();
+      _companyPhoneController.clear();
+      await _loadAllAdminData();
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add company: ${e.toString()}'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _addCoupon() async {
     if (_couponCodeController.text.trim().isEmpty) return;
     setState(() => _isLoading = true);
-    final discount = double.tryParse(_couponPercentController.text) ?? 10.0;
-
-    await ref.read(adminRepositoryProvider).addCoupon({
-      'code': _couponCodeController.text.trim().toUpperCase(),
-      'discount_percent': discount,
-      'valid_from': DateTime.now().toIso8601String(),
-      'valid_to': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
-    });
-    _couponCodeController.clear();
-    _couponPercentController.clear();
-    await _loadAllAdminData();
-    if (mounted) Navigator.pop(context);
+    try {
+      final discount = double.tryParse(_couponPercentController.text) ?? 10.0;
+      await ref.read(adminRepositoryProvider).addCoupon({
+        'code': _couponCodeController.text.trim().toUpperCase(),
+        'discount_percent': discount,
+        'valid_from': DateTime.now().toUtc().toIso8601String(),
+        'valid_to': DateTime.now().add(const Duration(days: 30)).toUtc().toIso8601String(),
+      });
+      _couponCodeController.clear();
+      _couponPercentController.clear();
+      await _loadAllAdminData();
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add coupon: ${e.toString()}'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _deleteCompany(String id) async {
     setState(() => _isLoading = true);
-    await ref.read(adminRepositoryProvider).deleteCompany(id);
-    await _loadAllAdminData();
+    try {
+      await ref.read(adminRepositoryProvider).deleteCompany(id);
+      await _loadAllAdminData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete company: ${e.toString()}'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _deleteCoupon(String id) async {
     setState(() => _isLoading = true);
-    await ref.read(adminRepositoryProvider).deleteCoupon(id);
-    await _loadAllAdminData();
+    try {
+      await ref.read(adminRepositoryProvider).deleteCoupon(id);
+      await _loadAllAdminData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete coupon: ${e.toString()}'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _resolveTicket(String ticketId) async {
     setState(() => _isLoading = true);
-    await ref.read(adminRepositoryProvider).updateTicketStatus(ticketId, 'resolved');
-    await _loadAllAdminData();
+    try {
+      await ref.read(adminRepositoryProvider).updateTicketStatus(ticketId, 'resolved');
+      await _loadAllAdminData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to resolve ticket: ${e.toString()}'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -190,6 +305,9 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
         break;
       case 'manage_staff':
         mainContent = _buildManageStaffSection();
+        break;
+      case 'buses':
+        mainContent = _buildBusesSection();
         break;
       case 'dashboard':
       default:
@@ -243,6 +361,7 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
 
   // --- SIDEBAR DESIGN (DESKTOP & DRAWER RESPONSIVE) ---
   Widget _buildSidebarContent({required bool isDrawer}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -252,22 +371,36 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'ENTERPRISE CONTROL',
-                style: AppTypography.label.copyWith(color: AppColors.primaryBlue, fontWeight: FontWeight.bold, letterSpacing: 1),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryBlue,
+                  letterSpacing: 1.5,
+                ),
               ),
-              AppSpacing.gapH4,
-              const Text('Somali Smart Bus System', style: AppTypography.subtitle),
+              const SizedBox(height: 6),
+              Text(
+                'Somali Smart Bus System',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                ),
+              ),
             ],
           ),
         ),
-        const Divider(),
+        Divider(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, height: 1),
+        const SizedBox(height: 12),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
               _buildSidebarTile(title: 'Overview Dashboard', section: 'dashboard', icon: Icons.dashboard_rounded, isDrawer: isDrawer),
               _buildSidebarTile(title: 'Manage Staff', section: 'manage_staff', icon: Icons.badge_rounded, isDrawer: isDrawer),
+              _buildSidebarTile(title: 'Manage Buses (Fleet)', section: 'buses', icon: Icons.directions_bus_filled_rounded, isDrawer: isDrawer),
               _buildSidebarTile(title: 'Transit Companies', section: 'companies', icon: Icons.domain_rounded, isDrawer: isDrawer),
               _buildSidebarTile(title: 'Regional Branches', section: 'branches', icon: Icons.location_city_rounded, isDrawer: isDrawer),
               _buildSidebarTile(title: 'Coupons & Promos', section: 'coupons', icon: Icons.local_offer_rounded, isDrawer: isDrawer),
@@ -283,23 +416,43 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
 
   Widget _buildSidebarTile({required String title, required String section, required IconData icon, required bool isDrawer}) {
     final isSelected = _selectedSection == section;
-    return ListTile(
-      leading: Icon(icon, color: isSelected ? AppColors.primaryBlue : Colors.grey),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isSelected ? AppColors.primaryBlue : null,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isSelected 
+            ? (isDark ? AppColors.primaryBlue.withValues(alpha: 0.15) : AppColors.primaryBlue.withValues(alpha: 0.08))
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
       ),
-      selected: isSelected,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      onTap: () {
-        setState(() {
-          _selectedSection = section;
-        });
-        if (isDrawer) Navigator.pop(context);
-      },
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon, 
+          color: isSelected 
+              ? AppColors.primaryBlue 
+              : (isDark ? Colors.white60 : Colors.grey[600]),
+          size: 20,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected 
+                ? AppColors.primaryBlue 
+                : (isDark ? Colors.white70 : Colors.grey[800]),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 13,
+          ),
+        ),
+        selected: isSelected,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        onTap: () {
+          setState(() {
+            _selectedSection = section;
+          });
+          if (isDrawer) Navigator.pop(context);
+        },
+      ),
     );
   }
 
@@ -308,6 +461,7 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     final double totalRevenue = _payments.where((p) => p['status'] == 'completed').fold<double>(0.0, (sum, element) => sum + (double.tryParse(element['amount'].toString()) ?? 0.0));
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 900;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,25 +470,65 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Overview Dashboard', style: AppTypography.h1),
-                  Text('Live metrics, revenue performance analytics, and dynamic pricing updates', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'Overview Dashboard', 
+                    style: AppTypography.h1.copyWith(
+                      color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppColors.successGreen,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Live metrics, revenue performance analytics, and dynamic pricing updates', 
+                        style: TextStyle(
+                          color: isDark ? Colors.white54 : Colors.grey[600],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               Row(
                 children: [
-                  ElevatedButton.icon(
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryBlue,
+                      side: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                     onPressed: () => _triggerReportExport('revenue_weekly', 'pdf'),
-                    icon: const Icon(Icons.picture_as_pdf_rounded),
-                    label: const Text('Export Weekly PDF'),
+                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                    label: const Text('Export Weekly PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
                   AppSpacing.gapW12,
                   ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                     onPressed: () => _triggerReportExport('revenue_monthly', 'xlsx'),
-                    icon: const Icon(Icons.table_view_rounded),
-                    label: const Text('Export Excel'),
+                    icon: const Icon(Icons.table_view_rounded, size: 18),
+                    label: const Text('Export Excel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
                 ],
               )
@@ -344,24 +538,66 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Overview Dashboard', style: AppTypography.h1),
-              const Text('Live metrics, revenue performance analytics, and dynamic pricing updates', style: TextStyle(color: Colors.grey)),
+              Text(
+                'Overview Dashboard', 
+                style: AppTypography.h1.copyWith(
+                  color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.successGreen,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Live metrics, revenue performance analytics, and dynamic pricing updates', 
+                      style: TextStyle(
+                        color: isDark ? Colors.white54 : Colors.grey[600],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               AppSpacing.gapH16,
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryBlue,
+                        side: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                       onPressed: () => _triggerReportExport('revenue_weekly', 'pdf'),
-                      icon: const Icon(Icons.picture_as_pdf_rounded),
-                      label: const Text('Export PDF'),
+                      icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                      label: const Text('Export PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ),
                   AppSpacing.gapW12,
                   Expanded(
                     child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                       onPressed: () => _triggerReportExport('revenue_monthly', 'xlsx'),
-                      icon: const Icon(Icons.table_view_rounded),
-                      label: const Text('Export Excel'),
+                      icon: const Icon(Icons.table_view_rounded, size: 18),
+                      label: const Text('Export Excel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ),
                 ],
@@ -402,47 +638,109 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
   }
 
   Widget _buildRevenueChartCard() {
-    return Card(
-      child: Padding(
-        padding: AppSpacing.pAll24,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Monthly Revenue Trends (AI Estimated Demand)', style: AppTypography.subtitle),
-            AppSpacing.gapH24,
-            // Visual graph mock representation using container bar indicators
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _buildChartBar(label: 'Jan', heightPercent: 0.35, val: '\$1,200'),
-                _buildChartBar(label: 'Feb', heightPercent: 0.50, val: '\$2,100'),
-                _buildChartBar(label: 'Mar', heightPercent: 0.45, val: '\$1,900'),
-                _buildChartBar(label: 'Apr', heightPercent: 0.70, val: '\$3,200'),
-                _buildChartBar(label: 'May', heightPercent: 0.85, val: '\$4,500'),
-                _buildChartBar(label: 'Jun', heightPercent: 0.95, val: '\$5,100', color: AppColors.successGreen),
-              ],
-            )
-          ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1.0,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Monthly Revenue Trends',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'AI Estimated Demand',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Visual graph mock representation using container bar indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _buildChartBar(label: 'Jan', heightPercent: 0.35, val: '\$1,200'),
+              _buildChartBar(label: 'Feb', heightPercent: 0.50, val: '\$2,100'),
+              _buildChartBar(label: 'Mar', heightPercent: 0.45, val: '\$1,900'),
+              _buildChartBar(label: 'Apr', heightPercent: 0.70, val: '\$3,200'),
+              _buildChartBar(label: 'May', heightPercent: 0.85, val: '\$4,500'),
+              _buildChartBar(label: 'Jun', heightPercent: 0.95, val: '\$5,100', color: AppColors.successGreen),
+            ],
+          )
+        ],
       ),
     );
   }
 
   Widget _buildRouteDensitiesCard() {
-    return Card(
-      child: Padding(
-        padding: AppSpacing.pAll24,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Route Densities Heatmap Load', style: AppTypography.subtitle),
-            AppSpacing.gapH20,
-            _buildRouteLoadBar(route: 'Mogadishu ➔ Garowe', density: 0.92, label: '92% (High demand modifier)'),
-            _buildRouteLoadBar(route: 'Hargeisa ➔ Burao', density: 0.55, label: '55% (Mid load factor)'),
-            _buildRouteLoadBar(route: 'Mogadishu ➔ Kismayo', density: 0.78, label: '78% (Peak weekend traffic)'),
-          ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1.0,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Route Densities Heatmap Load',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildRouteLoadBar(route: 'Mogadishu ➔ Garowe', density: 0.92, label: '92% (High demand modifier)'),
+          _buildRouteLoadBar(route: 'Hargeisa ➔ Burao', density: 0.55, label: '55% (Mid load factor)'),
+          _buildRouteLoadBar(route: 'Mogadishu ➔ Kismayo', density: 0.78, label: '78% (Peak weekend traffic)'),
+        ],
       ),
     );
   }
@@ -489,55 +787,150 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     }
   }
 
-  Widget _buildStatCard({required String title, required String value, required String subtitle, required IconData icon, required Color color}) {
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkSurface : Colors.white,
-        borderRadius: AppSpacing.radiusMedium,
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 28),
-              AppSpacing.gapW8,
+              // Title/Label
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Icon in a colored bubble
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Large Bold Value
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppColors.lightTextPrimary,
+              letterSpacing: -0.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          // Subtitle / context status-dot
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   subtitle,
-                  textAlign: TextAlign.end,
-                  style: AppTypography.bodySmall.copyWith(color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white54 : Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          AppSpacing.gapH16,
-          Text(value, style: AppTypography.h1.copyWith(fontWeight: FontWeight.bold)),
-          AppSpacing.gapH4,
-          Text(title, style: AppTypography.subtitle),
         ],
       ),
     );
   }
 
   Widget _buildChartBar({required String label, required double heightPercent, required String val, Color? color}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
-        Text(val, style: AppTypography.bodySmall.copyWith(color: Colors.grey)),
-        AppSpacing.gapH8,
-        Container(
-          width: 30,
-          height: 150 * heightPercent,
-          decoration: BoxDecoration(
-            color: color ?? AppColors.primaryBlue,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+        Text(
+          val, 
+          style: TextStyle(
+            fontSize: 11, 
+            color: isDark ? Colors.white70 : Colors.grey[700],
+            fontWeight: FontWeight.w500,
           ),
         ),
-        AppSpacing.gapH8,
-        Text(label),
+        const SizedBox(height: 8),
+        Container(
+          width: 32,
+          height: 150 * heightPercent,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: color != null
+                  ? [color, color.withValues(alpha: 0.7)]
+                  : [AppColors.primaryBlue, AppColors.primaryBlue.withValues(alpha: 0.7)],
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+            ),
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: [
+              BoxShadow(
+                color: (color ?? AppColors.primaryBlue).withValues(alpha: 0.3),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white54 : Colors.black54,
+          ),
+        ),
       ],
     );
   }
@@ -624,20 +1017,61 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
   }
 
   Widget _buildRouteLoadBar({required String route, required double density, required String label}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = density > 0.85 
+        ? AppColors.errorRed 
+        : (density > 0.70 ? AppColors.warningOrange : AppColors.primaryBlue);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(route, style: AppTypography.bodyMedium),
-          AppSpacing.gapH8,
-          LinearProgressIndicator(
-            value: density,
-            color: density > 0.85 ? AppColors.errorRed : AppColors.primaryBlue,
-            backgroundColor: Colors.grey.withValues(alpha: 0.1),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                route,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white70 : AppColors.lightTextPrimary,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${(density * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
-          AppSpacing.gapH4,
-          Text(label, style: AppTypography.bodySmall.copyWith(color: Colors.grey)),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: density,
+              minHeight: 8,
+              color: color,
+              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey[200],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? Colors.white38 : Colors.grey[600],
+            ),
+          ),
         ],
       ),
     );
@@ -1022,6 +1456,461 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
         )
       ],
     );
+  }
+
+  // --- BUS FLEET MANAGEMENT SECTION ---
+  Widget _buildBusesSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Bus Fleet Management', style: AppTypography.h2),
+                Text('Monitor, register and retire buses in the active transit fleet', style: AppTypography.bodySmall.copyWith(color: Colors.grey)),
+              ],
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _showAddBusDialog,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Xaree Bus (New)'),
+            )
+          ],
+        ),
+        AppSpacing.gapH24,
+        _buses.isEmpty
+            ? const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 40.0), child: Text('No buses registered yet.')))
+            : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _buses.length,
+                itemBuilder: (context, index) {
+                  final bus = _buses[index];
+                  final status = bus['status'].toString();
+                  final busNo = bus['bus_number'].toString();
+
+                  Color statusColor;
+                  switch (status) {
+                    case 'active':
+                      statusColor = AppColors.successGreen;
+                      break;
+                    case 'maintenance':
+                      statusColor = AppColors.warningOrange;
+                      break;
+                    case 'out_of_service':
+                    default:
+                      statusColor = AppColors.errorRed;
+                  }
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurface : Colors.white,
+                      borderRadius: AppSpacing.radiusMedium,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      leading: CircleAvatar(
+                        backgroundColor: statusColor.withValues(alpha: 0.1),
+                        child: Icon(Icons.directions_bus_filled_rounded, color: statusColor),
+                      ),
+                      title: Text(busNo, style: AppTypography.subtitle.copyWith(fontWeight: FontWeight.bold)),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text('Model: ${bus['model']} | Capacity: ${bus['capacity']} Seats'),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.1),
+                              borderRadius: AppSpacing.radiusSmall,
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 10),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.visibility_outlined, color: AppColors.primaryBlue),
+                            onPressed: () => _showViewBusDialog(bus),
+                            tooltip: 'View Details',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, color: AppColors.accentGold),
+                            onPressed: () => _showEditBusDialog(bus),
+                            tooltip: 'Edit Bus',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.errorRed),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Retire Bus?'),
+                                  content: Text('Are you sure you want to delete bus $busNo from the system?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        _deleteBus(busNo);
+                                      },
+                                      child: const Text('Delete'),
+                                    )
+                                  ],
+                                ),
+                              );
+                            },
+                            tooltip: 'Retire Bus',
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              )
+      ],
+    );
+  }
+
+  void _showAddBusDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Xaree Bus Cusub (Register New Bus)'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppTextField(
+                      label: 'Bus License Number (Plate)',
+                      hintText: 'e.g. MOG-KIS-09',
+                      controller: _busNumberCtrl,
+                      prefixIcon: Icons.tag,
+                    ),
+                    AppSpacing.gapH16,
+                    AppTextField(
+                      label: 'Bus Model',
+                      hintText: 'e.g. Toyota Coaster 2024',
+                      controller: _busModelCtrl,
+                      prefixIcon: Icons.directions_bus_rounded,
+                    ),
+                    AppSpacing.gapH16,
+                    AppTextField(
+                      label: 'Seat Capacity',
+                      hintText: 'e.g. 40',
+                      controller: _busCapacityCtrl,
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.chair_rounded,
+                    ),
+                    AppSpacing.gapH16,
+                    DropdownButtonFormField<String>(
+                      initialValue: _busStatus,
+                      decoration: const InputDecoration(labelText: 'Initial Status'),
+                      items: const [
+                        DropdownMenuItem(value: 'active', child: Text('Active (Shaqeenaya)')),
+                        DropdownMenuItem(value: 'maintenance', child: Text('Maintenance (Cilad bixis)')),
+                        DropdownMenuItem(value: 'out_of_service', child: Text('Out of Service')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            _busStatus = val;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+                  onPressed: _addBus,
+                  child: const Text('Register Bus'),
+                )
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _addBus() async {
+    final number = _busNumberCtrl.text.trim();
+    final model = _busModelCtrl.text.trim();
+    final capacity = int.tryParse(_busCapacityCtrl.text.trim()) ?? 40;
+
+    if (number.isEmpty || model.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields for the new bus'), backgroundColor: AppColors.errorRed),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(fleetRepositoryProvider).addBus({
+        'bus_number': number,
+        'model': model,
+        'capacity': capacity,
+        'status': _busStatus,
+        'fuel_level': 100.0,
+        'latitude': 2.0469,
+        'longitude': 45.3182,
+        'speed': 0.0,
+        'passenger_count': 0,
+      });
+
+      _busNumberCtrl.clear();
+      _busModelCtrl.clear();
+      _busCapacityCtrl.text = '40';
+      _busStatus = 'active';
+
+      if (mounted) {
+        Navigator.pop(context); // Close the dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bus successfully registered in system!'), backgroundColor: AppColors.successGreen),
+        );
+      }
+      await _loadAllAdminData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to register bus: $e'), backgroundColor: AppColors.errorRed),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _deleteBus(String busNumber) async {
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(fleetRepositoryProvider).deleteBus(busNumber);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bus successfully removed from fleet'), backgroundColor: AppColors.successGreen),
+        );
+      }
+      await _loadAllAdminData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete bus: $e'), backgroundColor: AppColors.errorRed),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showViewBusDialog(Map<String, dynamic> bus) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final lat = double.tryParse(bus['latitude'].toString()) ?? 2.0469;
+        final lng = double.tryParse(bus['longitude'].toString()) ?? 45.3182;
+        final fuel = bus['fuel_level'] ?? 100.0;
+        final speed = bus['speed'] ?? 0.0;
+        final pax = bus['passenger_count'] ?? 0;
+
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.directions_bus_rounded, color: AppColors.primaryBlue),
+              const SizedBox(width: 8),
+              Text(bus['bus_number'].toString()),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildViewRow('Model Name', bus['model'].toString()),
+                _buildViewRow('Seating Capacity', '${bus['capacity']} Seats'),
+                _buildViewRow('Active Status', bus['status'].toString().toUpperCase()),
+                const Divider(),
+                const Text('Real-time Telemetry (GPS)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryBlue)),
+                const SizedBox(height: 8),
+                _buildViewRow('GPS Coordinates', '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'),
+                _buildViewRow('Vehicle Speed', '$speed km/h'),
+                _buildViewRow('Fuel Level', '$fuel %'),
+                _buildViewRow('Passengers Onboard', '$pax Commuters'),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildViewRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 13)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  void _showEditBusDialog(Map<String, dynamic> bus) {
+    final busNo = bus['bus_number'].toString();
+    _busModelCtrl.text = bus['model'].toString();
+    _busCapacityCtrl.text = bus['capacity'].toString();
+    _busStatus = bus['status'].toString();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Edit Bus $busNo'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppTextField(
+                      label: 'Bus Model',
+                      hintText: 'e.g. Toyota Coaster 2024',
+                      controller: _busModelCtrl,
+                      prefixIcon: Icons.directions_bus_rounded,
+                    ),
+                    AppSpacing.gapH16,
+                    AppTextField(
+                      label: 'Seat Capacity',
+                      hintText: 'e.g. 40',
+                      controller: _busCapacityCtrl,
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.chair_rounded,
+                    ),
+                    AppSpacing.gapH16,
+                    DropdownButtonFormField<String>(
+                      initialValue: _busStatus,
+                      decoration: const InputDecoration(labelText: 'Initial Status'),
+                      items: const [
+                        DropdownMenuItem(value: 'active', child: Text('Active (Shaqeenaya)')),
+                        DropdownMenuItem(value: 'maintenance', child: Text('Maintenance (Cilad bixis)')),
+                        DropdownMenuItem(value: 'out_of_service', child: Text('Out of Service')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            _busStatus = val;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+                  onPressed: () => _updateBus(busNo),
+                  child: const Text('Save Changes'),
+                )
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _updateBus(String busNumber) async {
+    final model = _busModelCtrl.text.trim();
+    final capacity = int.tryParse(_busCapacityCtrl.text.trim()) ?? 40;
+
+    if (model.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields'), backgroundColor: AppColors.errorRed),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(fleetRepositoryProvider).updateBus(busNumber, {
+        'model': model,
+        'capacity': capacity,
+        'status': _busStatus,
+      });
+
+      _busModelCtrl.clear();
+      _busCapacityCtrl.text = '40';
+      _busStatus = 'active';
+
+      if (mounted) {
+        Navigator.pop(context); // Close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bus successfully updated!'), backgroundColor: AppColors.successGreen),
+        );
+      }
+      await _loadAllAdminData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update bus: $e'), backgroundColor: AppColors.errorRed),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   // ─── MANAGE STAFF SECTION (Driver & Conductor) ─────────────────────────────

@@ -272,21 +272,38 @@ class _DashboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final width = MediaQuery.of(context).size.width;
+
+    // Responsive layout calculation to prevent oversized cards on desktop/web
+    final int crossAxisCount = width > 1000 ? 4 : (width > 600 ? 3 : 2);
+    const double spacing = 12.0;
+    const double padding = 16.0;
+    final double gridWidth = width - (padding * 2);
+    final double itemWidth = (gridWidth - (spacing * (crossAxisCount - 1))) / crossAxisCount;
+    final double itemHeight = width > 600 ? 96.0 : 90.0;
+    final double childAspectRatio = itemWidth / itemHeight;
+
     return RefreshIndicator(
       onRefresh: () async {},
       child: ListView(
         padding: AppSpacing.pAll16,
         children: [
           AppSpacing.gapH8,
-          const Text('Platform Overview', style: AppTypography.h3),
+          Text(
+            'Platform Overview',
+            style: AppTypography.h3.copyWith(
+              color: isDark ? Colors.white : AppColors.lightTextPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           AppSpacing.gapH16,
           GridView.count(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.4,
+            childAspectRatio: childAspectRatio,
             children: [
               _StatCard(
                 label: 'Companies',
@@ -341,39 +358,53 @@ class _DashboardTab extends StatelessWidget {
           AppSpacing.gapH24,
           // Role legend
           Container(
-            padding: AppSpacing.pAll16,
+            padding: AppSpacing.pAll20,
             decoration: BoxDecoration(
               color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-              borderRadius: AppSpacing.radiusMedium,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                width: 1.0,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.security_rounded,
-                        color: AppColors.primaryBlue, size: 18),
-                    AppSpacing.gapW8,
-                    Text('Hierarchy Access Levels', style: AppTypography.subtitle),
+                    const Icon(Icons.security_rounded,
+                        color: AppColors.primaryBlue, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Hierarchy Access Levels',
+                      style: AppTypography.subtitle.copyWith(
+                        color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
-                AppSpacing.gapH12,
-                _RoleLegendRow(
+                const SizedBox(height: 16),
+                const _RoleLegendRow(
                     role: 'SuperAdmin',
                     desc: 'Nidaamka wuu leeyahay — Admin abuuraa',
                     color: Color(0xFF6366F1)),
-                _RoleLegendRow(
+                const _RoleLegendRow(
                     role: 'Admin',
                     desc: 'Ganacsi maamulaa — Driver & Conductor abuuraa',
                     color: AppColors.accentGold),
-                _RoleLegendRow(
+                const _RoleLegendRow(
                     role: 'Driver / Conductor',
                     desc: 'Admin ayaa abuuraa — signup ma garanayaan',
                     color: AppColors.successGreen),
-                _RoleLegendRow(
+                const _RoleLegendRow(
                     role: 'Passenger',
                     desc: 'Nafsadooda ayaa signup garanaya',
                     color: AppColors.primaryBlue),
@@ -404,25 +435,63 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: AppSpacing.pAll16,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: AppSpacing.radiusMedium,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 28),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value,
-                  style: AppTypography.h2.copyWith(color: color, fontSize: 26)),
-              Text(label, style: AppTypography.bodySmall),
-            ],
+          // Icon Container
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          // Value and label
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -435,44 +504,117 @@ class _RevenueCard extends StatelessWidget {
   final int bookings;
   final bool isDark;
 
-  const _RevenueCard(
-      {required this.revenue, required this.bookings, required this.isDark});
+  const _RevenueCard({
+    required this.revenue,
+    required this.bookings,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: AppSpacing.pAll20,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF00ADEF), Color(0xFF6366F1)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: AppSpacing.radiusLarge,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00ADEF).withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
+          // Left side: icon + revenue
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text('Monthly Revenue',
-                    style: AppTypography.bodySmall
-                        .copyWith(color: Colors.white70)),
-                Text('\$${revenue.toStringAsFixed(0)}',
-                    style: AppTypography.h1
-                        .copyWith(color: Colors.white, fontSize: 28)),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.payments_rounded,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Monthly Revenue',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '\$${revenue.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
           const SizedBox(width: 16),
+          // Vertical divider
+          Container(
+            height: 40,
+            width: 1,
+            color: Colors.white.withValues(alpha: 0.2),
+          ),
+          const SizedBox(width: 20),
+          // Right side: bookings details
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.confirmation_number_rounded,
-                  color: Colors.white70, size: 20),
-              Text('$bookings', style: AppTypography.h3.copyWith(color: Colors.white)),
-              Text('Bookings', style: AppTypography.bodySmall.copyWith(color: Colors.white70)),
+              Text(
+                'Bookings',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.confirmation_number_rounded,
+                    color: Colors.white70,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '$bookings',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ],
@@ -485,34 +627,44 @@ class _RoleLegendRow extends StatelessWidget {
   final String role;
   final String desc;
   final Color color;
-  const _RoleLegendRow(
-      {required this.role, required this.desc, required this.color});
+
+  const _RoleLegendRow({
+    required this.role,
+    required this.desc,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
           Container(
-            width: 10,
-            height: 10,
-            decoration:
-                BoxDecoration(color: color, shape: BoxShape.circle),
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          AppSpacing.gapW12,
+          const SizedBox(width: 12),
           Expanded(
             child: RichText(
               text: TextSpan(
+                style: TextStyle(
+                  fontFamily: 'System',
+                  fontSize: 13,
+                  color: isDark ? Colors.white70 : AppColors.lightTextSecondary,
+                ),
                 children: [
                   TextSpan(
-                    text: '$role  ',
-                    style: AppTypography.label
-                        .copyWith(color: color, fontSize: 12),
+                    text: '$role:  ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
                   ),
                   TextSpan(
                     text: desc,
-                    style: AppTypography.bodySmall,
                   ),
                 ],
               ),
