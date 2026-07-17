@@ -6,8 +6,12 @@ import '../../../../core/config/spacing.dart';
 import '../../../../core/config/typography.dart';
 import '../../../../core/shared/localization/localization_provider.dart';
 import '../../../../core/shared/services/auth_service.dart';
+import '../../../../core/shared/services/wallet_service.dart';
 import '../../../../core/shared/widgets/cards.dart';
 import '../../../../core/shared/widgets/passenger_nav_bar.dart';
+import '../../../booking/data/booking_repository.dart';
+import '../../../booking/data/models/trip.dart';
+import '../../../booking/presentation/controllers/booking_controller.dart';
 
 class PassengerHomeScreen extends ConsumerWidget {
   const PassengerHomeScreen({super.key});
@@ -120,7 +124,7 @@ class PassengerHomeScreen extends ConsumerWidget {
                           ],
                         ),
                         Text(
-                          '\$100.00',
+                          '\$${ref.watch(walletServiceProvider).toStringAsFixed(2)}',
                           style: AppTypography.h3.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -248,25 +252,93 @@ class PassengerHomeScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              BusRouteCard(
-                departureCity: 'Mogadishu',
-                arrivalCity: 'Garowe',
-                departureTime: '06:00 AM',
-                arrivalTime: '02:00 PM',
-                price: '\$25.00',
-                seatsLeft: '4',
-                busNumber: 'MOG-GRW-08',
-                onTap: () => context.push('/booking-routes-details?departure=Mogadishu&arrival=Garowe'),
-              ),
-              BusRouteCard(
-                departureCity: 'Hargeisa',
-                arrivalCity: 'Burao',
-                departureTime: '08:30 AM',
-                arrivalTime: '12:45 PM',
-                price: '\$12.00',
-                seatsLeft: '9',
-                busNumber: 'HAR-BUR-02',
-                onTap: () => context.push('/booking-routes-details?departure=Hargeisa&arrival=Burao'),
+              FutureBuilder<List<Trip>>(
+                future: ref.watch(bookingRepositoryProvider).getTrips(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text('Error loading trips: ${snapshot.error}'),
+                    );
+                  }
+
+                  final trips = snapshot.data ?? [];
+                  if (trips.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24.0),
+                      child: Center(
+                        child: Text(
+                          'No trips available at the moment.',
+                          style: TextStyle(fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Show up to 3 featured trips
+                  final featuredTrips = trips.take(3).toList();
+
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: featuredTrips.length,
+                    itemBuilder: (context, index) {
+                      final trip = featuredTrips[index];
+                      final isFull = trip.occupiedSeats.length >= 30;
+                      final now = DateTime.now();
+                      final today = DateTime(now.year, now.month, now.day);
+                      final departureDay = DateTime(trip.departureTime.year, trip.departureTime.month, trip.departureTime.day);
+                      final isExpired = departureDay.isBefore(today);
+                      final seatsTag = isFull
+                          ? 'FULL'
+                          : isExpired
+                              ? 'EXPIRED'
+                              : trip.availableSeats.toString();
+
+                      return BusRouteCard(
+                        departureCity: trip.departureCity,
+                        arrivalCity: trip.arrivalCity,
+                        departureTime: _formatTime(trip.departureTime),
+                        arrivalTime: _formatTime(trip.arrivalTime),
+                        price: '\$${trip.price.toStringAsFixed(2)}',
+                        seatsLeft: seatsTag,
+                        busNumber: trip.busNumber,
+                        onTap: () {
+                          if (isExpired) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Waqtiga wuu baxay (Departed). Lama sii ballansan karo!'),
+                                backgroundColor: AppColors.errorRed,
+                              ),
+                            );
+                            return;
+                          }
+                          if (isFull) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Baska wuu buuxaa (30+ seats limit). Lama sii ballansan karo!'),
+                                backgroundColor: AppColors.errorRed,
+                              ),
+                            );
+                            return;
+                          }
+                          // Update controller with selected trip
+                          ref.read(bookingFlowControllerProvider.notifier).selectTrip(trip);
+                          context.push('/booking-seats');
+                        },
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
@@ -274,5 +346,12 @@ class PassengerHomeScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: const PassengerNavBar(currentIndex: 0),
     );
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour > 12 ? dateTime.hour - 12 : (dateTime.hour == 0 ? 12 : dateTime.hour);
+    final min = dateTime.minute.toString().padLeft(2, '0');
+    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$min $period';
   }
 }

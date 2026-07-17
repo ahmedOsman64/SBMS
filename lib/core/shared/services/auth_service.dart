@@ -71,6 +71,7 @@ class AppUser {
   final String fullName;
   final String phoneNumber;
   final UserRole role;
+  final double walletBalance;
 
   const AppUser({
     required this.id,
@@ -78,9 +79,10 @@ class AppUser {
     required this.fullName,
     required this.phoneNumber,
     required this.role,
+    this.walletBalance = 0.0,
   });
 
-  factory AppUser.fromMetadata(User user) {
+  factory AppUser.fromMetadata(User user, {double walletBalance = 0.0}) {
     final meta = user.userMetadata ?? {};
     return AppUser(
       id: user.id,
@@ -88,6 +90,18 @@ class AppUser {
       fullName: meta['full_name'] as String? ?? 'Somali Commuter',
       phoneNumber: meta['phone_number'] as String? ?? '',
       role: UserRole.fromString(meta['role'] as String?),
+      walletBalance: walletBalance,
+    );
+  }
+
+  factory AppUser.fromMap(Map<String, dynamic> map, {String fallbackEmail = ''}) {
+    return AppUser(
+      id: map['id'] as String,
+      email: map['email'] as String? ?? fallbackEmail,
+      fullName: map['full_name'] as String? ?? 'Somali Commuter',
+      phoneNumber: map['phone_number'] as String? ?? '',
+      role: UserRole.fromString(map['role'] as String?),
+      walletBalance: (map['wallet_balance'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -112,6 +126,24 @@ class AuthService {
   AppUser? get currentAppUser =>
       currentUser != null ? AppUser.fromMetadata(currentUser!) : null;
 
+  Future<AppUser> fetchUserProfile(String userId, String fallbackEmail) async {
+    try {
+      final response = await _supabase
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .single();
+      return AppUser.fromMap(response, fallbackEmail: fallbackEmail);
+    } catch (e) {
+      _logger.w('Failed to fetch user profile from DB: $e. Falling back to auth metadata.');
+      final user = currentUser;
+      if (user != null && user.id == userId) {
+        return AppUser.fromMetadata(user);
+      }
+      rethrow;
+    }
+  }
+
   Future<AppUser> login({
     required String email,
     required String password,
@@ -126,7 +158,11 @@ class AuthService {
         throw const AuthFailure('Login failed. User profile empty.');
       }
 
-      return AppUser.fromMetadata(response.user!);
+      try {
+        return await fetchUserProfile(response.user!.id, response.user!.email ?? email);
+      } catch (_) {
+        return AppUser.fromMetadata(response.user!);
+      }
     } catch (e) {
       throw FailureHandler.handleException(e, _logger);
     }
@@ -155,7 +191,14 @@ class AuthService {
         throw const AuthFailure('Registration failed.');
       }
 
-      return AppUser.fromMetadata(response.user!);
+      // Wait a short time for the database trigger to finish inserting the profile
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      try {
+        return await fetchUserProfile(response.user!.id, response.user!.email ?? email);
+      } catch (_) {
+        return AppUser.fromMetadata(response.user!);
+      }
     } catch (e) {
       throw FailureHandler.handleException(e, _logger);
     }
@@ -210,15 +253,30 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
   }
 
   void _init() {
-    state = AsyncValue.data(_authService.currentAppUser);
+    final user = _authService.currentUser;
+    if (user != null) {
+      _loadProfileAsync(user);
+    } else {
+      state = const AsyncValue.data(null);
+    }
+
     _authService.authStateChanges.listen((data) {
       final user = data.session?.user;
       if (user != null) {
-        state = AsyncValue.data(AppUser.fromMetadata(user));
+        _loadProfileAsync(user);
       } else {
         state = const AsyncValue.data(null);
       }
     });
+  }
+
+  Future<void> _loadProfileAsync(User user) async {
+    try {
+      final appUser = await _authService.fetchUserProfile(user.id, user.email ?? '');
+      state = AsyncValue.data(appUser);
+    } catch (e) {
+      state = AsyncValue.data(AppUser.fromMetadata(user));
+    }
   }
 
   Future<void> signIn(String email, String password) async {
