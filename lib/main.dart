@@ -16,11 +16,19 @@ void main() async {
 
   // 1. Initialize Local Storage (Hive & Secure Storage)
   final storageService = StorageService();
-  await storageService.initialize();
+  try {
+    await storageService.initialize();
+  } catch (e) {
+    debugPrint('StorageService initialization failed: $e');
+  }
 
   // 2. Initialize Backend (Supabase client integration)
   final supabaseService = SupabaseService();
-  await supabaseService.initialize();
+  try {
+    await supabaseService.initialize();
+  } catch (e) {
+    debugPrint('SupabaseService initialization failed: $e');
+  }
 
   runApp(
     ProviderScope(

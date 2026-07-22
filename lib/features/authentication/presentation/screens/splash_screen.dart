@@ -23,25 +23,49 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _startInitialization() async {
-    // Mimic database check and logo animations
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Mimic database check and logo animations
+      await Future.delayed(const Duration(seconds: 2));
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
-    final isOnboarded = settingsBox.get(AppConstants.keyIsOnboarded, defaultValue: false) as bool;
+      bool isOnboarded = false;
+      try {
+        if (Hive.isBoxOpen(AppConstants.hiveSettingsBox)) {
+          final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
+          isOnboarded = settingsBox.get(AppConstants.keyIsOnboarded, defaultValue: false) as bool;
+        }
+      } catch (e) {
+        debugPrint('Hive box check error in splash: $e');
+      }
 
-    if (!isOnboarded) {
-      context.go('/onboarding');
-      return;
-    }
+      AppUser? user;
+      try {
+        final authState = ref.read(authNotifierProvider);
+        user = authState.valueOrNull;
+      } catch (e) {
+        debugPrint('Auth state read error in splash: $e');
+      }
 
-    final authState = ref.read(authNotifierProvider);
-    final user = authState.valueOrNull;
-    if (user != null) {
-      context.go(user.role.dashboardRoute);
-    } else {
-      context.go('/login');
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (!isOnboarded) {
+            context.go('/onboarding');
+          } else if (user != null) {
+            context.go(user.role.dashboardRoute);
+          } else {
+            context.go('/login');
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error in splash initialization: $e');
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) context.go('/login');
+        });
+      }
     }
   }
 

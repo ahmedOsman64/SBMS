@@ -49,10 +49,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       final user = authState.valueOrNull;
       final isLoggedIn = user != null;
 
-      final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
-      final isOnboarded =
-          settingsBox.get(AppConstants.keyIsOnboarded, defaultValue: false)
-              as bool;
+      bool isOnboarded = false;
+      try {
+        if (Hive.isBoxOpen(AppConstants.hiveSettingsBox)) {
+          final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
+          isOnboarded =
+              settingsBox.get(AppConstants.keyIsOnboarded, defaultValue: false)
+                  as bool;
+        }
+      } catch (_) {}
 
       final loc = state.matchedLocation;
       final isGoingToSplash = loc == '/';

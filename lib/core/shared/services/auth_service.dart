@@ -121,10 +121,18 @@ class AuthService {
   // Auth state stream
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
-  User? get currentUser => _supabase.auth.currentUser;
+  User? get currentUser {
+    try {
+      return _supabase.auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
 
-  AppUser? get currentAppUser =>
-      currentUser != null ? AppUser.fromMetadata(currentUser!) : null;
+  AppUser? get currentAppUser {
+    final user = currentUser;
+    return user != null ? AppUser.fromMetadata(user) : null;
+  }
 
   Future<AppUser> fetchUserProfile(String userId, String fallbackEmail) async {
     try {
@@ -140,7 +148,13 @@ class AuthService {
       if (user != null && user.id == userId) {
         return AppUser.fromMetadata(user);
       }
-      rethrow;
+      return AppUser(
+        id: userId,
+        email: fallbackEmail,
+        fullName: 'Somali Commuter',
+        phoneNumber: '',
+        role: UserRole.passenger,
+      );
     }
   }
 
@@ -253,21 +267,31 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
   }
 
   void _init() {
-    final user = _authService.currentUser;
-    if (user != null) {
-      _loadProfileAsync(user);
-    } else {
-      state = const AsyncValue.data(null);
-    }
-
-    _authService.authStateChanges.listen((data) {
-      final user = data.session?.user;
+    try {
+      final user = _authService.currentUser;
       if (user != null) {
         _loadProfileAsync(user);
       } else {
         state = const AsyncValue.data(null);
       }
-    });
+    } catch (_) {
+      state = const AsyncValue.data(null);
+    }
+
+    try {
+      _authService.authStateChanges.listen((data) {
+        final user = data.session?.user;
+        if (user != null) {
+          _loadProfileAsync(user);
+        } else {
+          state = const AsyncValue.data(null);
+        }
+      }, onError: (err) {
+        state = const AsyncValue.data(null);
+      });
+    } catch (_) {
+      // If authStateChanges stream throws or is unavailable
+    }
   }
 
   Future<void> _loadProfileAsync(User user) async {

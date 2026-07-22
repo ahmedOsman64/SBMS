@@ -11,49 +11,87 @@ class StorageService {
   final _secureStorage = const FlutterSecureStorage();
 
   Future<void> initialize() async {
-    await Hive.initFlutter();
+    try {
+      await Hive.initFlutter();
+    } catch (_) {}
     
-    // Open default boxes
-    await Hive.openBox(AppConstants.hiveSettingsBox);
-    await Hive.openBox(AppConstants.hiveSessionBox);
-    await Hive.openBox(AppConstants.hiveCacheBox);
+    // Open default boxes safely
+    final boxes = [
+      AppConstants.hiveSettingsBox,
+      AppConstants.hiveSessionBox,
+      AppConstants.hiveCacheBox,
+    ];
+    for (final box in boxes) {
+      try {
+        if (!Hive.isBoxOpen(box)) {
+          await Hive.openBox(box);
+        }
+      } catch (_) {}
+    }
   }
 
   // --- Secure Storage (Tokens, Credentials) ---
   Future<void> saveSecureData(String key, String value) async {
-    await _secureStorage.write(key: key, value: value);
+    try {
+      await _secureStorage.write(key: key, value: value);
+    } catch (_) {}
   }
 
   Future<String?> readSecureData(String key) async {
-    return await _secureStorage.read(key: key);
+    try {
+      return await _secureStorage.read(key: key);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> deleteSecureData(String key) async {
-    await _secureStorage.delete(key: key);
+    try {
+      await _secureStorage.delete(key: key);
+    } catch (_) {}
   }
 
   Future<void> clearAllSecureData() async {
-    await _secureStorage.deleteAll();
+    try {
+      await _secureStorage.deleteAll();
+    } catch (_) {}
   }
 
   // --- Hive General Box Operations ---
   Future<void> putData(String boxName, String key, dynamic value) async {
-    final box = Hive.box(boxName);
-    await box.put(key, value);
+    try {
+      if (Hive.isBoxOpen(boxName)) {
+        final box = Hive.box(boxName);
+        await box.put(key, value);
+      }
+    } catch (_) {}
   }
 
   dynamic getData(String boxName, String key, {dynamic defaultValue}) {
-    final box = Hive.box(boxName);
-    return box.get(key, defaultValue: defaultValue);
+    try {
+      if (Hive.isBoxOpen(boxName)) {
+        final box = Hive.box(boxName);
+        return box.get(key, defaultValue: defaultValue);
+      }
+    } catch (_) {}
+    return defaultValue;
   }
 
   Future<void> deleteData(String boxName, String key) async {
-    final box = Hive.box(boxName);
-    await box.delete(key);
+    try {
+      if (Hive.isBoxOpen(boxName)) {
+        final box = Hive.box(boxName);
+        await box.delete(key);
+      }
+    } catch (_) {}
   }
 
   Future<void> clearBox(String boxName) async {
-    final box = Hive.box(boxName);
-    await box.clear();
+    try {
+      if (Hive.isBoxOpen(boxName)) {
+        final box = Hive.box(boxName);
+        await box.clear();
+      }
+    } catch (_) {}
   }
 }

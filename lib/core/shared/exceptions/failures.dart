@@ -67,10 +67,33 @@ class FailureHandler {
     }
     
     // 2. Map invalid login credentials
-    if (lowerMsg.contains('invalid login credentials') || lowerMsg.contains('invalid credentials') || lowerMsg.contains('invalid email or password')) {
+    if (lowerMsg.contains('invalid login credentials') ||
+        lowerMsg.contains('invalid credentials') ||
+        lowerMsg.contains('invalid email or password') ||
+        lowerMsg.contains('invalid_grant') ||
+        lowerMsg.contains('invalid grant') ||
+        lowerMsg.contains('user not found') ||
+        lowerMsg.contains('user_not_found') ||
+        lowerMsg.contains('user-not-found')) {
       return const AuthFailure(
         'Email-ka ama Password-ka aad gelisay waa khalad. Fadlan dib u hubi. / Incorrect email or password. Please check your credentials.',
         code: 'INVALID_CREDENTIALS',
+      );
+    }
+
+    // 2b. Map invalid email format
+    if (lowerMsg.contains('invalid email') || lowerMsg.contains('email format')) {
+      return const AuthFailure(
+        'Email-ka aad gelisay qaabkiisa ma saxna. Fadlan sax. / The email address format is invalid.',
+        code: 'INVALID_EMAIL',
+      );
+    }
+
+    // 2c. Map banned or suspended users
+    if (lowerMsg.contains('banned') || lowerMsg.contains('user is banned') || lowerMsg.contains('suspended')) {
+      return const AuthFailure(
+        'Akoonkaaga waa la xannibay. Fadlan la xiriir maamulka. / Your account has been banned or suspended. Please contact support.',
+        code: 'USER_BANNED',
       );
     }
     
@@ -147,6 +170,14 @@ class FailureHandler {
     // If it was already a Failure but didn't match the specific string replacements above, return as is
     if (exception is Failure) {
       return exception;
+    }
+
+    // If it is an AuthException that didn't match any specialized auth handling above, return as AuthFailure with detail
+    if (exception is AuthException) {
+      return AuthFailure(
+        'Cillad ayaa ku dhacday hubinta aqoonsiga: ${exception.message} / Authentication failed: ${exception.message}',
+        code: originalCode ?? 'AUTH_ERR',
+      );
     }
     
     // General fallback mappings
