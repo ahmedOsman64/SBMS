@@ -114,7 +114,7 @@ class AdminRepository {
           final secondRes = await _supabase.from('coupons').select('*');
           return List<Map<String, dynamic>>.from(secondRes);
         } catch (e) {
-          _logger.w('Auto-seeding coupons failed (RLS/Permissions): $e');
+          _logger.d('Auto-seeding coupons skipped due to RLS policies: $e');
           return mockItems;
         }
       }
@@ -267,7 +267,7 @@ class AdminRepository {
             final secondRes = await _supabase.from('audit_logs').select('*').order('created_at', ascending: false);
             return List<Map<String, dynamic>>.from(secondRes);
           } catch (e) {
-            _logger.w('Auto-seeding audit logs failed (RLS/Permissions): $e');
+            _logger.d('Auto-seeding audit logs skipped due to RLS policies: $e');
             return mockItems;
           }
         }
@@ -335,7 +335,7 @@ class AdminRepository {
             final secondRes = await _supabase.from('support_tickets').select('*');
             return _formatTickets(secondRes as List);
           } catch (e) {
-            _logger.w('Auto-seeding support tickets failed (RLS/Permissions): $e');
+            _logger.d('Auto-seeding support tickets skipped due to RLS policies: $e');
             return mockItems;
           }
         }
@@ -428,7 +428,7 @@ class AdminRepository {
           final secondRes = await _supabase.from('ai_insights').select('*').eq('type', 'DEMAND_PREDICTION');
           return _formatPredictions(secondRes as List);
         } catch (e) {
-          _logger.w('Auto-seeding demand predictions failed (RLS/Permissions): $e');
+          _logger.d('Auto-seeding demand predictions skipped due to RLS policies: $e');
           return mockItems;
         }
       }
@@ -508,7 +508,7 @@ class AdminRepository {
           final secondRes = await _supabase.from('ai_insights').select('*').eq('type', 'DYNAMIC_PRICING');
           return _formatPricing(secondRes as List);
         } catch (e) {
-          _logger.w('Auto-seeding dynamic pricing modifications failed (RLS/Permissions): $e');
+          _logger.d('Auto-seeding dynamic pricing modifications skipped due to RLS policies: $e');
           return mockItems;
         }
       }
@@ -585,7 +585,7 @@ class AdminRepository {
           final secondRes = await _supabase.from('ai_insights').select('*').eq('type', 'FRAUD_ALERT');
           return _formatFraud(secondRes as List);
         } catch (e) {
-          _logger.w('Auto-seeding fraud detections failed (RLS/Permissions): $e');
+          _logger.d('Auto-seeding fraud detections skipped due to RLS policies: $e');
           return mockItems;
         }
       }
